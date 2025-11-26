@@ -50,7 +50,7 @@ export const LAYOUT = {
     row: "grid gap-4 border-b p-4 last:border-0 hover:bg-muted/50 transition-colors",
     cell: "flex items-center",
   },
-} as const
+} as const;
 
 /**
  * Status color mappings for consistent status indicators
@@ -61,7 +61,7 @@ export const STATUS_COLORS = {
   error: "text-red-600 bg-red-50",
   inProgress: "text-blue-600 bg-blue-50",
   info: "text-cyan-600 bg-cyan-50",
-} as const
+} as const;
 
 /**
  * Button variant mappings for consistent button styling
@@ -73,4 +73,4 @@ export const BUTTON_VARIANTS = {
   warning: "bg-orange-500 text-white hover:bg-orange-600",
   error: "bg-red-500 text-white hover:bg-red-600",
   info: "bg-cyan-500 text-white hover:bg-cyan-600",
-} as const
+} as const;

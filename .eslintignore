@@ -1,0 +1,20 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+dist-renderer/
+electron-cache/
+
+# Config files
+*.config.js
+*.config.ts
+*.config.cjs
+
+# Build artifacts
+*.min.js
+*.min.css
+
+# Logs
+*.log
+

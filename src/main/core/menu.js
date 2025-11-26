@@ -1,48 +1,46 @@
 /**
- * Menu Configuration Module
+ * Menu Configuration Module (API-Only Architecture)
  * Defines application menu structure
  * Functional approach to menu creation
  */
 
-// eslint-disable-next-line import/no-extraneous-dependencies
-const { Menu, dialog } = require('electron');
-const logger = require('../utils/logger');
-const updater = require('../services/updater');
+const { Menu, dialog } = require("electron");
+const logger = require("../utils/logger");
 
 /**
  * Create File menu template
  */
 const createFileMenu = (mainWindow) => ({
-  label: 'File',
+  label: "File",
   submenu: [
     {
-      label: 'New Extraction',
-      accelerator: 'CmdOrCtrl+N',
-      click: () => mainWindow.webContents.send('menu-new-extraction'),
+      label: "New Extraction",
+      accelerator: "CmdOrCtrl+N",
+      click: () => mainWindow.webContents.send("menu-new-extraction"),
     },
     {
-      label: 'Open URL',
-      accelerator: 'CmdOrCtrl+L',
+      label: "Open URL",
+      accelerator: "CmdOrCtrl+L",
       click: async () => {
         await dialog.showMessageBox(mainWindow, {
-          type: 'question',
-          title: 'Open URL',
-          message: 'This feature requires the URL input in the main interface.',
-          detail: 'Please use the URL bar at the top of the application.',
-          buttons: ['OK'],
+          type: "question",
+          title: "Open URL",
+          message: "This feature requires the URL input in the main interface.",
+          detail: "Please use the URL bar at the top of the application.",
+          buttons: ["OK"],
         });
       },
     },
-    { type: 'separator' },
+    { type: "separator" },
     {
-      label: 'Export Data',
-      accelerator: 'CmdOrCtrl+E',
-      click: () => mainWindow.webContents.send('menu-export-data'),
+      label: "Export Data",
+      accelerator: "CmdOrCtrl+E",
+      click: () => mainWindow.webContents.send("menu-export-data"),
     },
-    { type: 'separator' },
+    { type: "separator" },
     {
-      label: 'Logout',
-      accelerator: 'CmdOrCtrl+Shift+L',
+      label: "Logout",
+      accelerator: "CmdOrCtrl+Shift+L",
       click: () => {
         mainWindow.webContents.executeJavaScript(`
           localStorage.removeItem('isAuthenticated');
@@ -52,12 +50,12 @@ const createFileMenu = (mainWindow) => ({
         `);
       },
     },
-    { type: 'separator' },
+    { type: "separator" },
     {
-      label: 'Exit',
-      accelerator: process.platform === 'darwin' ? 'Cmd+Q' : 'Ctrl+Q',
-      // eslint-disable-next-line import/no-extraneous-dependencies, global-require
-      click: () => require('electron').app.quit(),
+      label: "Exit",
+      accelerator: process.platform === "darwin" ? "Cmd+Q" : "Ctrl+Q",
+      // eslint-disable-next-line global-require
+      click: () => require("electron").app.quit(),
     },
   ],
 });
@@ -66,14 +64,14 @@ const createFileMenu = (mainWindow) => ({
  * Create Edit menu template
  */
 const createEditMenu = () => ({
-  label: 'Edit',
+  label: "Edit",
   submenu: [
-    { role: 'undo' },
-    { role: 'redo' },
-    { type: 'separator' },
-    { role: 'cut' },
-    { role: 'copy' },
-    { role: 'paste' },
+    { role: "undo" },
+    { role: "redo" },
+    { type: "separator" },
+    { role: "cut" },
+    { role: "copy" },
+    { role: "paste" },
   ],
 });
 
@@ -81,17 +79,17 @@ const createEditMenu = () => ({
  * Create View menu template
  */
 const createViewMenu = () => ({
-  label: 'View',
+  label: "View",
   submenu: [
-    { role: 'reload' },
-    { role: 'forcereload' },
-    { role: 'toggledevtools' },
-    { type: 'separator' },
-    { role: 'resetzoom' },
-    { role: 'zoomin' },
-    { role: 'zoomout' },
-    { type: 'separator' },
-    { role: 'togglefullscreen' },
+    { role: "reload" },
+    { role: "forcereload" },
+    { role: "toggledevtools" },
+    { type: "separator" },
+    { role: "resetzoom" },
+    { role: "zoomin" },
+    { role: "zoomout" },
+    { type: "separator" },
+    { role: "togglefullscreen" },
   ],
 });
 
@@ -99,16 +97,16 @@ const createViewMenu = () => ({
  * Create Tools menu template
  */
 const createToolsMenu = (mainWindow) => ({
-  label: 'Tools',
+  label: "Tools",
   submenu: [
     {
-      label: 'Clear All Data',
-      click: () => mainWindow.webContents.send('menu-clear-data'),
+      label: "Clear All Data",
+      click: () => mainWindow.webContents.send("menu-clear-data"),
     },
     {
-      label: 'Find Similar Elements',
-      accelerator: 'CmdOrCtrl+F',
-      click: () => mainWindow.webContents.send('menu-find-similar'),
+      label: "Find Similar Elements",
+      accelerator: "CmdOrCtrl+F",
+      click: () => mainWindow.webContents.send("menu-find-similar"),
     },
   ],
 });
@@ -117,24 +115,44 @@ const createToolsMenu = (mainWindow) => ({
  * Create Help menu template
  */
 const createHelpMenu = (mainWindow) => ({
-  label: 'Help',
+  label: "Help",
   submenu: [
     {
-      label: 'Check for Updates',
-      click: () => updater.checkForUpdates(),
+      label: "Check for Updates",
+      click: () => {
+        try {
+          // eslint-disable-next-line global-require
+          const { autoUpdater } = require("electron-updater");
+          autoUpdater.checkForUpdatesAndNotify();
+          dialog.showMessageBox(mainWindow, {
+            type: "info",
+            title: "Update Check",
+            message: "Checking for updates...",
+            detail: "You will be notified if an update is available.",
+          });
+        } catch (error) {
+          logger.warn("Auto-updater not available:", error.message);
+          dialog.showMessageBox(mainWindow, {
+            type: "info",
+            title: "Update Check",
+            message: "Auto-update not available in development mode.",
+          });
+        }
+      },
     },
-    { type: 'separator' },
+    { type: "separator" },
     {
-      label: 'About',
+      label: "About",
       click: () => {
         // eslint-disable-next-line global-require
-        const packageInfo = require('../../../package.json');
-        const detailText = 'Professional web scraping tool with Chrome extension functionality.'
-          + '\n\nBuilt with Electron and modern web technologies.';
+        const packageInfo = require("../../../package.json");
+        const detailText =
+          "Professional data collection tool for restaurant menu items." +
+          "\n\nBuilt with Electron, React, and Next.js API.";
         dialog.showMessageBox(mainWindow, {
-          type: 'info',
-          title: 'About Advanced Data Extractor',
-          message: `Advanced Data Extractor v${packageInfo.version}`,
+          type: "info",
+          title: "About Datassential Collector",
+          message: `Datassential Collector v${packageInfo.version}`,
           detail: detailText,
         });
       },
@@ -157,7 +175,7 @@ const createMenu = (mainWindow) => {
   const menu = Menu.buildFromTemplate(template);
   Menu.setApplicationMenu(menu);
 
-  logger.success('Application menu created');
+  logger.success("Application menu created");
 };
 
 module.exports = {

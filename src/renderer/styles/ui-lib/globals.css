@@ -51,15 +51,29 @@
   --collector-blue: #0494f7;
 
   /* Gradients (Pre-defined for consistency) */
-  --gradient-primary: linear-gradient(135deg, var(--collector-primary) 0%, var(--collector-secondary) 100%);
-  --gradient-secondary: linear-gradient(135deg, var(--collector-accent) 0%, #05f7b0 100%);
-  --gradient-dark: linear-gradient(135deg, var(--collector-dark) 0%, #191414 100%);
+  --gradient-primary: linear-gradient(
+    135deg,
+    var(--collector-primary) 0%,
+    var(--collector-secondary) 100%
+  );
+  --gradient-secondary: linear-gradient(
+    135deg,
+    var(--collector-accent) 0%,
+    #05f7b0 100%
+  );
+  --gradient-dark: linear-gradient(
+    135deg,
+    var(--collector-dark) 0%,
+    #191414 100%
+  );
 
   /* Shadows (Professional elevation system) */
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-md:
+    0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
   --shadow-lg: 8px 8px 49.5px 10px rgba(0, 0, 0, 0.05);
-  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  --shadow-xl:
+    0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
 
   /* Sidebar colors */
   --sidebar: oklch(1 0 0);

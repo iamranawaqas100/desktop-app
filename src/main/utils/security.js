@@ -3,7 +3,7 @@
  * Input sanitization and validation
  */
 
-const logger = require('./logger');
+const logger = require("./logger");
 
 /**
  * Sanitize HTML to prevent XSS
@@ -11,16 +11,16 @@ const logger = require('./logger');
  * @returns {string} Sanitized HTML
  */
 const sanitizeHtml = (html) => {
-  if (!html) return '';
+  if (!html) return "";
 
   // Basic HTML entity encoding
   const map = {
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    '"': '&quot;',
-    "'": '&#x27;',
-    '/': '&#x2F;',
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#x27;",
+    "/": "&#x2F;",
   };
 
   return String(html).replace(/[&<>"'/]/g, (char) => map[char]);
@@ -32,17 +32,17 @@ const sanitizeHtml = (html) => {
  * @returns {string} Sanitized URL
  */
 const sanitizeUrl = (url) => {
-  if (!url) return '';
+  if (!url) return "";
 
   // Remove javascript: and data: protocols
   // eslint-disable-next-line no-script-url
-  const dangerous = ['javascript:', 'data:', 'vbscript:', 'file:'];
+  const dangerous = ["javascript:", "data:", "vbscript:", "file:"];
   const lower = url.toLowerCase().trim();
 
   const isDangerous = dangerous.some((protocol) => lower.startsWith(protocol));
   if (isDangerous) {
-    logger.warn('Dangerous URL protocol detected:', url);
-    return '';
+    logger.warn("Dangerous URL protocol detected:", url);
+    return "";
   }
 
   return url;
@@ -54,16 +54,16 @@ const sanitizeUrl = (url) => {
  * @returns {string} Sanitized path
  */
 const sanitizeFilePath = (filePath) => {
-  if (!filePath) return '';
+  if (!filePath) return "";
 
   // Remove path traversal attempts and dangerous characters
   const sanitized = filePath
-    .replace(/\.\./g, '')
-    .replace(/[<>:"|?*]/g, '')
-    .replace(/^[/\\]+/, ''); // Remove leading slashes
+    .replace(/\.\./g, "")
+    .replace(/[<>:"|?*]/g, "")
+    .replace(/^[/\\]+/, ""); // Remove leading slashes
 
   if (sanitized !== filePath) {
-    logger.warn('Path traversal attempt detected:', filePath);
+    logger.warn("Path traversal attempt detected:", filePath);
   }
 
   return sanitized;
@@ -90,7 +90,7 @@ const isValidUrl = (url) => {
 
   try {
     const parsed = new URL(url);
-    return ['http:', 'https:'].includes(parsed.protocol);
+    return ["http:", "https:"].includes(parsed.protocol);
   } catch {
     return false;
   }
@@ -130,8 +130,8 @@ const createRateLimiter = (maxRequests = 100, windowMs = 60000) => {
  */
 const generateToken = (length = 32) => {
   // eslint-disable-next-line global-require
-  const crypto = require('crypto');
-  return crypto.randomBytes(length).toString('hex');
+  const crypto = require("crypto");
+  return crypto.randomBytes(length).toString("hex");
 };
 
 /**
@@ -141,8 +141,8 @@ const generateToken = (length = 32) => {
  */
 const hashData = (data) => {
   // eslint-disable-next-line global-require
-  const crypto = require('crypto');
-  return crypto.createHash('sha256').update(data).digest('hex');
+  const crypto = require("crypto");
+  return crypto.createHash("sha256").update(data).digest("hex");
 };
 
 /**
@@ -152,26 +152,26 @@ const hashData = (data) => {
  */
 const validatePasswordStrength = (password) => {
   if (!password) {
-    return { valid: false, message: 'Password is required' };
+    return { valid: false, message: "Password is required" };
   }
 
   if (password.length < 8) {
-    return { valid: false, message: 'Password must be at least 8 characters' };
+    return { valid: false, message: "Password must be at least 8 characters" };
   }
 
   if (!/[a-z]/.test(password)) {
-    return { valid: false, message: 'Password must contain lowercase letter' };
+    return { valid: false, message: "Password must contain lowercase letter" };
   }
 
   if (!/[A-Z]/.test(password)) {
-    return { valid: false, message: 'Password must contain uppercase letter' };
+    return { valid: false, message: "Password must contain uppercase letter" };
   }
 
   if (!/[0-9]/.test(password)) {
-    return { valid: false, message: 'Password must contain number' };
+    return { valid: false, message: "Password must contain number" };
   }
 
-  return { valid: true, message: 'Password is strong' };
+  return { valid: true, message: "Password is strong" };
 };
 
 /**
@@ -180,15 +180,22 @@ const validatePasswordStrength = (password) => {
  * @returns {Object} Sanitized object
  */
 const sanitizeForLogging = (obj) => {
-  if (!obj || typeof obj !== 'object') return obj;
+  if (!obj || typeof obj !== "object") return obj;
 
-  const sensitive = ['password', 'token', 'secret', 'apiKey', 'api_key', 'accessToken'];
+  const sensitive = [
+    "password",
+    "token",
+    "secret",
+    "apiKey",
+    "api_key",
+    "accessToken",
+  ];
   const sanitized = { ...obj };
 
   Object.keys(sanitized).forEach((key) => {
     if (sensitive.some((s) => key.toLowerCase().includes(s.toLowerCase()))) {
-      sanitized[key] = '[REDACTED]';
-    } else if (typeof sanitized[key] === 'object') {
+      sanitized[key] = "[REDACTED]";
+    } else if (typeof sanitized[key] === "object") {
       sanitized[key] = sanitizeForLogging(sanitized[key]);
     }
   });

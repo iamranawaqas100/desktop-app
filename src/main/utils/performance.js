@@ -3,7 +3,7 @@
  * Tracks application performance metrics
  */
 
-const logger = require('./logger');
+const logger = require("./logger");
 
 // Performance metrics storage
 const metrics = new Map();
@@ -143,16 +143,19 @@ const clearMetrics = (name) => {
  */
 const logSummary = () => {
   const allMetrics = getAllMetrics();
-  logger.info('Performance Summary:');
+  logger.info("Performance Summary:");
 
   Object.entries(allMetrics).forEach(([name, data]) => {
     if (data) {
       logger.info(`  ${name}:`);
       logger.info(`    Count: ${data.count}`);
-      const durationMsg = `    Duration: avg ${data.duration.avg.toFixed(2)}ms, `
-        + `min ${data.duration.min.toFixed(2)}ms, max ${data.duration.max.toFixed(2)}ms`;
+      const durationMsg =
+        `    Duration: avg ${data.duration.avg.toFixed(2)}ms, ` +
+        `min ${data.duration.min.toFixed(2)}ms, max ${data.duration.max.toFixed(2)}ms`;
       logger.info(durationMsg);
-      logger.info(`    Memory: avg ${(data.memory.avg / 1024 / 1024).toFixed(2)}MB`);
+      logger.info(
+        `    Memory: avg ${(data.memory.avg / 1024 / 1024).toFixed(2)}MB`
+      );
     }
   });
 };
@@ -179,7 +182,7 @@ const getMemoryUsage = () => {
 const startMemoryMonitoring = (interval = 60000) => {
   const intervalId = setInterval(() => {
     const usage = getMemoryUsage();
-    logger.debug('Memory Usage:', usage);
+    logger.debug("Memory Usage:", usage);
 
     // Warn if heap usage is high
     const heapUsedMB = parseFloat(usage.heapUsed);

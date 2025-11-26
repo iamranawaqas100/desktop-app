@@ -1,6 +1,6 @@
-"use client"
+"use client";
 
-import * as React from "react"
+import * as React from "react";
 
 const Select = React.forwardRef<
   HTMLSelectElement,
@@ -14,9 +14,9 @@ const Select = React.forwardRef<
     >
       {children}
     </select>
-  )
-})
-Select.displayName = "Select"
+  );
+});
+Select.displayName = "Select";
 
 const SelectTrigger = React.forwardRef<
   HTMLDivElement,
@@ -30,17 +30,17 @@ const SelectTrigger = React.forwardRef<
     >
       {children}
     </div>
-  )
-})
-SelectTrigger.displayName = "SelectTrigger"
+  );
+});
+SelectTrigger.displayName = "SelectTrigger";
 
 const SelectValue = React.forwardRef<
   HTMLSpanElement,
   React.HTMLAttributes<HTMLSpanElement>
 >(({ className = "", ...props }, ref) => {
-  return <span ref={ref} className={className} {...props} />
-})
-SelectValue.displayName = "SelectValue"
+  return <span ref={ref} className={className} {...props} />;
+});
+SelectValue.displayName = "SelectValue";
 
 const SelectContent = React.forwardRef<
   HTMLDivElement,
@@ -54,9 +54,9 @@ const SelectContent = React.forwardRef<
     >
       {children}
     </div>
-  )
-})
-SelectContent.displayName = "SelectContent"
+  );
+});
+SelectContent.displayName = "SelectContent";
 
 const SelectItem = React.forwardRef<
   HTMLOptionElement,
@@ -68,9 +68,8 @@ const SelectItem = React.forwardRef<
       className={`relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 px-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground ${className}`}
       {...props}
     />
-  )
-})
-SelectItem.displayName = "SelectItem"
+  );
+});
+SelectItem.displayName = "SelectItem";
 
-export { Select, SelectTrigger, SelectValue, SelectContent, SelectItem }
-
+export { Select, SelectTrigger, SelectValue, SelectContent, SelectItem };

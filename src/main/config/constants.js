@@ -3,13 +3,13 @@
  * Centralized configuration for easy maintenance
  */
 
-const isDevelopment = process.env.NODE_ENV === 'development';
+const isDevelopment = process.env.NODE_ENV === "development";
 const isProduction = !isDevelopment;
 
 // API URL configuration - environment aware
 const getApiUrl = () => {
   // Check if running from packaged app
-  const { app } = require('electron');
+  const { app } = require("electron");
   const isPackaged = app.isPackaged;
 
   // Use environment variable if set, otherwise use defaults
@@ -20,11 +20,29 @@ const getApiUrl = () => {
   // Default URLs based on environment
   if (isPackaged) {
     // Production: Use production URL
-    return process.env.PRODUCTION_API_URL || 'http://localhost:3000';
+    return (
+      process.env.PRODUCTION_API_URL ||
+      "https://collector-ui.qa.datassential.com"
+    );
   } else {
-    // Development: Use local development server
-    return 'http://localhost:3000';
+    // Development: Use local development server or production for testing
+    return "https://collector-ui.qa.datassential.com";
   }
+};
+
+// MongoDB URL configuration
+const getMongoDbUrl = () => {
+  // Use environment variable if set
+  if (process.env.MONGODB_URI) {
+    return process.env.MONGODB_URI;
+  }
+
+  // Default to same MongoDB as web app
+  return "mongodb://localhost:27017";
+};
+
+const getMongoDbName = () => {
+  return process.env.DB_NAME || "collector-database";
 };
 
 module.exports = {
@@ -35,6 +53,12 @@ module.exports = {
   // API Configuration
   api: {
     baseUrl: getApiUrl(),
+  },
+
+  // MongoDB Configuration
+  mongodb: {
+    uri: getMongoDbUrl(),
+    dbName: getMongoDbName(),
   },
 
   // Window configuration
@@ -55,8 +79,8 @@ module.exports = {
 
   // Network configuration
   network: {
-    debugPort: '9222',
-    updateCheckInterval: '5 minutes',
+    debugPort: "9222",
+    updateCheckInterval: "5 minutes",
   },
 
   // Authentication
@@ -66,30 +90,30 @@ module.exports = {
 
   // Protocol
   protocol: {
-    scheme: 'dataextractor',
+    scheme: "dataextractor",
   },
 
   // GitHub repository
   repository: {
-    owner: 'iamranawaqas100',
-    repo: 'manual-extrator',
+    owner: "iamranawaqas100",
+    repo: "manual-extrator",
   },
 
   // Command line switches
   commandLineSwitches: [
-    { key: 'disable-blink-features', value: 'AutomationControlled' },
-    { key: 'disable-features', value: 'IsolateOrigins,site-per-process' },
-    { key: 'disable-site-isolation-trials', value: null },
+    { key: "disable-blink-features", value: "AutomationControlled" },
+    { key: "disable-features", value: "IsolateOrigins,site-per-process" },
+    { key: "disable-site-isolation-trials", value: null },
   ],
 
   // Request headers for stealth mode
   stealthHeaders: {
-    'Accept-Language': 'en-US,en;q=0.9',
-    'Accept-Encoding': 'gzip, deflate, br',
-    'Sec-Fetch-Dest': 'document',
-    'Sec-Fetch-Mode': 'navigate',
-    'Sec-Fetch-Site': 'none',
-    'Sec-Fetch-User': '?1',
-    'Upgrade-Insecure-Requests': '1',
+    "Accept-Language": "en-US,en;q=0.9",
+    "Accept-Encoding": "gzip, deflate, br",
+    "Sec-Fetch-Dest": "document",
+    "Sec-Fetch-Mode": "navigate",
+    "Sec-Fetch-Site": "none",
+    "Sec-Fetch-User": "?1",
+    "Upgrade-Insecure-Requests": "1",
   },
 };

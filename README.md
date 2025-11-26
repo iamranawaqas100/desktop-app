@@ -76,7 +76,9 @@ src/
 ## Configuration
 
 ### API URL
+
 Set via environment variable:
+
 ```bash
 # Windows
 $env:API_URL = "https://your-api.com"
@@ -86,6 +88,7 @@ export API_URL="https://your-api.com"
 ```
 
 ### Theme
+
 Edit `src/renderer/index.css` to customize colors.
 
 ## Documentation
@@ -95,10 +98,13 @@ See `ARCHITECTURE.md` for detailed architecture documentation.
 ## Build Output
 
 Production builds are created in the `dist/` directory:
+
 - `Data Extractor Setup-{version}-x64.exe` - Windows installer
 
 ## License
 
 MIT License - Copyright © 2025 Data Extractor Team
+
 # desktop-app
+
 # desktop-app

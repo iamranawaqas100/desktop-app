@@ -3,9 +3,9 @@
  * Integrates with Sentry for production error monitoring
  */
 
-const Sentry = require('@sentry/electron');
-const logger = require('./logger');
-const config = require('../config/constants');
+const Sentry = require("@sentry/electron");
+const logger = require("./logger");
+const config = require("../config/constants");
 
 let initialized = false;
 
@@ -15,7 +15,7 @@ let initialized = false;
  */
 const initializeErrorTracking = (options = {}) => {
   if (initialized) {
-    logger.warn('Error tracking already initialized');
+    logger.warn("Error tracking already initialized");
     return;
   }
 
@@ -24,12 +24,11 @@ const initializeErrorTracking = (options = {}) => {
     try {
       Sentry.init({
         dsn: process.env.SENTRY_DSN,
-        environment: config.isProduction ? 'production' : 'development',
+        environment: config.isProduction ? "production" : "development",
         // eslint-disable-next-line global-require
-        release: require('../../../package.json').version,
+        release: require("../../../package.json").version,
         tracesSampleRate: 1.0,
-        // eslint-disable-next-line no-unused-vars
-        beforeSend(event, _hint) {
+        beforeSend(event) {
           // Filter out sensitive information
           if (event.request) {
             delete event.request.cookies;
@@ -41,12 +40,12 @@ const initializeErrorTracking = (options = {}) => {
       });
 
       initialized = true;
-      logger.success('Error tracking initialized');
+      logger.success("Error tracking initialized");
     } catch (error) {
-      logger.error('Failed to initialize error tracking:', error);
+      logger.error("Failed to initialize error tracking:", error);
     }
   } else {
-    logger.info('Error tracking disabled in development');
+    logger.info("Error tracking disabled in development");
   }
 };
 
@@ -56,7 +55,7 @@ const initializeErrorTracking = (options = {}) => {
  * @param {Object} context - Additional context
  */
 const trackError = (error, context = {}) => {
-  logger.error('Error tracked:', error, context);
+  logger.error("Error tracked:", error, context);
 
   if (initialized) {
     Sentry.withScope((scope) => {
@@ -74,8 +73,8 @@ const trackError = (error, context = {}) => {
  * @param {string} level - Severity level
  * @param {Object} context - Additional context
  */
-const trackMessage = (message, level = 'info', context = {}) => {
-  logger.info('Message tracked:', message, level, context);
+const trackMessage = (message, level = "info", context = {}) => {
+  logger.info("Message tracked:", message, level, context);
 
   if (initialized) {
     Sentry.withScope((scope) => {

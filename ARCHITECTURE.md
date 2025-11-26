@@ -11,11 +11,13 @@ The Data Extractor is built as a standalone Electron application with a clear se
 The main process handles all Node.js operations, system interactions, and application lifecycle.
 
 #### Core (`src/main/core/`)
+
 - **lifecycle.js** - Application lifecycle management (startup, shutdown, updates)
 - **menu.js** - Application menu configuration
 - **window.js** - Window management and creation
 
 #### Services (`src/main/services/`)
+
 - **data.js** - Data persistence and retrieval
 - **database.js** - Local database operations
 - **export.js** - Data export functionality (JSON, CSV)
@@ -24,9 +26,11 @@ The main process handles all Node.js operations, system interactions, and applic
 - **updater.js** - Auto-update functionality
 
 #### IPC (`src/main/ipc/`)
+
 - **handlers.js** - Inter-Process Communication handlers
 
 #### Utilities (`src/main/utils/`)
+
 - **errorTracking.js** - Error monitoring and reporting
 - **logger.js** - Application logging
 - **performance.js** - Performance monitoring
@@ -39,6 +43,7 @@ The renderer process is a React application that provides the user interface.
 #### Components (`src/renderer/components/`)
 
 **Application Components:**
+
 - **App.tsx** - Root application component with authentication
 - **MainLayout.tsx** - Main application layout
 - **TitleBar.tsx** - Custom title bar with navigation
@@ -48,6 +53,7 @@ The renderer process is a React application that provides the user interface.
 **UI Library (`src/renderer/components/ui-lib/`):**
 
 Base UI Components:
+
 - `ui/button.tsx` - Button component with variants
 - `ui/input.tsx` - Input fields
 - `ui/label.tsx` - Labels
@@ -66,6 +72,7 @@ Base UI Components:
 - `ui/textarea.tsx` - Text area
 
 Feature Components:
+
 - `login-form.tsx` - Login form
 - `header.tsx` - Application header
 - `empty-state.tsx` - Empty state placeholder
@@ -81,6 +88,7 @@ Feature Components:
 - `toast-provider.tsx` - Toast notifications provider
 
 Admin Components (`admin/`):
+
 - `sidebar.tsx` - Admin sidebar
 - `topbar.tsx` - Admin top bar
 - `user-management.tsx` - User management
@@ -98,24 +106,28 @@ Admin Components (`admin/`):
 - `quarter-management.tsx` - Quarter management
 
 Collector Components (`collector/`):
+
 - `sidebar.tsx` - Collector sidebar
 - `topbar.tsx` - Collector top bar
 - `empty-state.tsx` - Empty state for collectors
 - `collector-dashboard.tsx` - Collector dashboard
 
 #### Libraries (`src/renderer/lib/`)
+
 - **utils.ts** - Utility functions (cn, etc.)
 - **layout-constants.ts** - Layout configuration constants
 - **useAsyncAction.ts** - Async action hook
 - **desktop-integration.ts** - Desktop integration utilities
 
 #### State Management (`src/renderer/store.ts`)
+
 - Zustand-based state management
 - Extraction data management
 - Collection context
 - Mode management (manual, verification)
 
 #### Styles (`src/renderer/styles/`)
+
 - **index.css** - Main application styles
 - **ui-lib/globals.css** - UI library styles
 - **ui-lib/theme-only.css** - Theme-only styles
@@ -226,23 +238,23 @@ connect-src 'self' http://localhost:* https://*;
 ```typescript
 interface ExtractionStore {
   // Data
-  extractedData: ExtractedItem[]
-  
+  extractedData: ExtractedItem[];
+
   // Context
-  collectionContext: CollectionContext | null
-  
+  collectionContext: CollectionContext | null;
+
   // UI State
-  currentMode: 'manual' | 'verification'
-  selectedField: string | null
-  currentItemId: number | null
-  
+  currentMode: "manual" | "verification";
+  selectedField: string | null;
+  currentItemId: number | null;
+
   // Actions
-  addExtractedItem: (item) => void
-  updateExtractedItem: (id, data) => void
-  removeExtractedItem: (id) => void
-  setExtractedData: (data) => void
-  setCollectionContext: (context) => void
-  setCurrentMode: (mode) => void
+  addExtractedItem: (item) => void;
+  updateExtractedItem: (id, data) => void;
+  removeExtractedItem: (id) => void;
+  setExtractedData: (data) => void;
+  setCollectionContext: (context) => void;
+  setCurrentMode: (mode) => void;
 }
 ```
 
@@ -277,30 +289,35 @@ interface ExtractionStore {
 ## Technology Decisions
 
 ### Why Electron?
+
 - Cross-platform desktop support
 - Access to Node.js APIs for file system, networking
 - Web view integration for data extraction
 - Native system integration (protocols, notifications)
 
 ### Why React?
+
 - Component-based architecture
 - Large ecosystem of libraries
 - Excellent TypeScript support
 - Fast development with hooks
 
 ### Why Zustand?
+
 - Simple, lightweight state management
 - No boilerplate
 - TypeScript-first
 - Better than Redux for small apps
 
 ### Why Vite?
+
 - Fast HMR (Hot Module Replacement)
 - Modern build tool
 - Excellent TypeScript support
 - Optimized production builds
 
 ### Why Radix UI?
+
 - Accessible components out of the box
 - Unstyled, fully customizable
 - Excellent keyboard navigation
@@ -309,6 +326,7 @@ interface ExtractionStore {
 ## Performance Considerations
 
 ### Optimizations
+
 - Code splitting (React, UI vendors)
 - Tree shaking
 - Minification
@@ -317,6 +335,7 @@ interface ExtractionStore {
 - Lazy loading of routes (if implemented)
 
 ### Memory Management
+
 - Webview process isolation
 - Proper cleanup on component unmount
 - Efficient state updates
@@ -325,6 +344,7 @@ interface ExtractionStore {
 ## Deployment
 
 ### Windows Installer (NSIS)
+
 - Per-user installation (no admin required)
 - Custom install directory
 - Desktop shortcut
@@ -333,6 +353,7 @@ interface ExtractionStore {
 - Update notifications
 
 ### Auto-Updates
+
 - Check for updates on startup
 - Download in background
 - Notify user when ready
@@ -341,6 +362,7 @@ interface ExtractionStore {
 ## Future Enhancements
 
 ### Planned Features
+
 - [ ] Multi-window support
 - [ ] Offline mode with sync
 - [ ] Advanced data filtering
@@ -351,6 +373,7 @@ interface ExtractionStore {
 - [ ] Advanced search
 
 ### Technical Improvements
+
 - [ ] Unit tests
 - [ ] Integration tests
 - [ ] E2E tests
@@ -363,4 +386,3 @@ interface ExtractionStore {
 ---
 
 This architecture provides a solid foundation for a maintainable, scalable, and professional desktop application.
-

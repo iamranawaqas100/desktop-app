@@ -1,0 +1,89 @@
+# Dependencies
+node_modules/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Build outputs
+dist/
+dist-renderer/
+electron-cache/
+build/
+out/
+*.exe
+*.blockmap
+*.asar
+
+# Generated files
+*.min.js
+*.min.css
+*.bundle.js
+*.chunk.js
+
+# Binary files
+*.ico
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.svg
+*.webp
+*.woff
+*.woff2
+*.ttf
+*.eot
+*.dll
+*.pak
+*.bin
+*.dat
+*.zip
+*.tar
+*.gz
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Version control
+.git/
+.gitignore
+
+# Coverage
+coverage/
+.nyc_output/
+*.lcov
+
+# Testing
+.nyc_output/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Electron builder generated files
+builder-debug.yml
+builder-effective-config.yaml
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+.cache/
+
