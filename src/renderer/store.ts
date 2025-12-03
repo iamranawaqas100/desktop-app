@@ -42,6 +42,9 @@ export interface ExtractedItem {
   // Legacy fields (for backward compatibility)
   collectionId?: string;
   quarterId?: string;
+  
+  // Template mode
+  isTemplate?: boolean; // true if this is a temporary template item
 }
 
 export interface CollectionContext {

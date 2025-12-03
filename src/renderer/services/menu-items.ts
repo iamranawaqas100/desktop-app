@@ -65,9 +65,9 @@ export async function getMenuItems(
 
   try {
     if (isAIVerification) {
-      // Fetch AI-collected items
+      // Fetch AI-collected items using v1 API
       const response = await apiClient.get<any>(
-        `/menu-items/ai/collected?restaurant_id=${restaurantId}&source_id=${sourceId}`
+        `/v1/menu-items/ai?restaurantId=${restaurantId}&sourceId=${sourceId}`
       );
 
       console.log("[API Service] AI menu items response:", response);
@@ -129,7 +129,7 @@ export async function saveMenuItem(
   console.log("[API Service] Saving menu item...", data);
 
   try {
-    const response = await apiClient.post<any>("/menu-items/manual", data);
+    const response = await apiClient.post<any>("/v1/menu-items/manual", data);
 
     console.log("[API Service] Save response:", response);
 
@@ -175,9 +175,8 @@ export async function updateMenuItem(
     if (data.menuHeaderName !== undefined)
       updateData.menuHeaderName = data.menuHeaderName;
 
-    // Note: We'll need to create an update endpoint in the API
-    // For now, we'll use a PATCH to the manual items endpoint
-    await apiClient.patch(`/menu-items/manual/${itemId}`, updateData);
+    // Use v1 API for updating manual items
+    await apiClient.patch(`/v1/menu-items/manual/${itemId}`, updateData);
 
     console.log("[API Service] Menu item updated successfully");
   } catch (error) {
@@ -193,7 +192,7 @@ export async function getSource(sourceId: string): Promise<any> {
   console.log("[API Service] Fetching source...", sourceId);
 
   try {
-    const response = await apiClient.get(`/sources/${sourceId}`);
+    const response = await apiClient.get(`/v1/sources/${sourceId}`);
     return response.source;
   } catch (error) {
     console.error("[API Service] Error fetching source:", error);

@@ -17,8 +17,12 @@ function App() {
   const [, setUser] = useState<any>(null);
   const { webAppUrl, isLocalhost, toggleUrl } = useUrlStore();
   const [isDevMode, setIsDevMode] = useState(false);
-  const { setExtractedData, setCollectionContext, setCurrentMode, setUser: setGlobalUser } =
-    useExtractionStore();
+  const {
+    setExtractedData,
+    setCollectionContext,
+    setCurrentMode,
+    setUser: setGlobalUser,
+  } = useExtractionStore();
 
   console.log("🚀 App component rendering, state:", {
     isAuthenticated,
@@ -198,6 +202,9 @@ function App() {
         event.key === "S"
       ) {
         event.preventDefault();
+        event.stopPropagation();
+
+        console.log("[Keyboard] Ctrl+Shift+S pressed - toggling environment");
 
         // ⭐ Reset session before switching environment
         resetAppSession();
@@ -211,11 +218,19 @@ function App() {
       }
     };
 
-    window.addEventListener("keydown", handleKeyDown);
+    // Use capture phase to ensure we catch the event early
+    document.addEventListener("keydown", handleKeyDown, true);
+    window.addEventListener("keydown", handleKeyDown, true);
+
+    console.log(
+      "[Keyboard] Environment toggle shortcut (Ctrl+Shift+S) registered"
+    );
+
     return () => {
-      window.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("keydown", handleKeyDown, true);
+      window.removeEventListener("keydown", handleKeyDown, true);
     };
-  }, [toggleUrl, isLocalhost]);
+  }, [toggleUrl, isLocalhost]); // resetAppSession is stable, no need to include
 
   useEffect(() => {
     console.log("🔄 App mounted, checking authentication...");
@@ -605,33 +620,40 @@ function App() {
    * - QC 1 (verification mode) → Manual Collection
    * - Manual Collection → QC 1
    * - Any collection → Another collection
+   *
+   * ⭐ ENHANCED: Returns a Promise so callers can await completion
    */
-  const resetAppSession = () => {
-    console.log("🧹 Resetting app session...");
+  const resetAppSession = (options?: { keepData?: boolean }): Promise<void> => {
+    return new Promise((resolve) => {
+      console.log("🧹 Resetting app session...", options);
 
-    // ⭐ Show loading indicator during mode transition
-    setIsSwitchingMode(true);
+      // ⭐ Show loading indicator during mode transition
+      setIsSwitchingMode(true);
 
-    // Clear store state
-    setExtractedData([]);
-    setCollectionContext(null);
-    setCurrentMode("manual");
+      // Clear store state (optionally keep data for "add more items" flow)
+      if (!options?.keepData) {
+        setExtractedData([]);
+      }
+      setCollectionContext(null);
+      setCurrentMode("manual");
 
-    // Clear any selection/editing state via store
-    const { setSelectedField, setCurrentItemId } =
-      useExtractionStore.getState();
-    setSelectedField(null);
-    setCurrentItemId(null);
+      // Clear any selection/editing state via store
+      const { setSelectedField, setCurrentItemId } =
+        useExtractionStore.getState();
+      setSelectedField(null);
+      setCurrentItemId(null);
 
-    // Clear webview by dispatching reset event to MainLayout
-    // This will set currentUrl to empty, effectively clearing the webview
-    window.dispatchEvent(new CustomEvent("reset-webview"));
+      // Clear webview by dispatching reset event to MainLayout
+      // This will set currentUrl to empty, effectively clearing the webview
+      window.dispatchEvent(new CustomEvent("reset-webview"));
 
-    // ⭐ FIX: Slightly longer delay to ensure webview is fully reset before hiding loading
-    setTimeout(() => {
-      setIsSwitchingMode(false);
-      console.log("✅ App session reset complete");
-    }, 500); // Increased from 300ms to 500ms for better stability
+      // ⭐ FIX: Slightly longer delay to ensure webview is fully reset before hiding loading
+      setTimeout(() => {
+        setIsSwitchingMode(false);
+        console.log("✅ App session reset complete");
+        resolve();
+      }, 500); // Increased from 300ms to 500ms for better stability
+    });
   };
 
   const handleAICollectionCallback = async (collectionData: any) => {
@@ -655,7 +677,7 @@ function App() {
     await processAICollection(collectionData);
   };
 
-  const handleManualExtraction = (data: any) => {
+  const handleManualExtraction = async (data: any) => {
     console.log(" ");
     console.log("🎯🎯🎯 PROCESSING MANUAL EXTRACTION 🎯🎯🎯");
     console.log("📦 Raw data:", data);
@@ -681,51 +703,52 @@ function App() {
 
     // ⭐ CRITICAL FIX: Reset session before loading new collection
     // This fixes the bug where source doesn't load after QC 1
-    resetAppSession();
+    // Now properly awaits the reset completion
+    await resetAppSession();
 
-    // Wait for reset to complete before setting new context
+    // Set collection context for pure manual collection (no AI data)
+    console.log("📝 Setting collection context:", {
+      restaurantId: data.restaurantId,
+      sourceId: data.sourceId,
+      restaurantName: data.restaurantName,
+    });
+
+    setCollectionContext({
+      restaurantId: data.restaurantId,
+      restaurantName: data.restaurantName || "Unknown Restaurant",
+      collectionId: data.collectionId,
+      collectionName: data.collectionName || "",
+      quarterId: data.quarterId,
+      quarterName: data.quarterName || "",
+      sourceId: data.sourceId,
+      sourceUrl: data.url,
+      hasAIData: false, // This is pure manual collection
+    });
+
+    // Set mode to manual
+    setCurrentMode("manual");
+
+    // User is authenticated, open the URL directly
+    console.log("🌐 Opening source URL:", data.url);
+
+    // Small delay to ensure context is set in store before dispatching
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    // Dispatch event to MainLayout to load the URL
+    window.dispatchEvent(
+      new CustomEvent("open-source-url", {
+        detail: data.url,
+      })
+    );
+
+    // Load existing data from MongoDB (if any)
+    console.log("📥 Loading existing data from MongoDB...");
     setTimeout(() => {
-      // Set collection context for pure manual collection (no AI data)
-      console.log("📝 Setting collection context:", {
-        restaurantId: data.restaurantId,
-        sourceId: data.sourceId,
-        restaurantName: data.restaurantName,
-      });
+      loadData();
+    }, 300); // Small delay to ensure context is set in store
 
-      setCollectionContext({
-        restaurantId: data.restaurantId,
-        restaurantName: data.restaurantName || "Unknown Restaurant",
-        collectionId: data.collectionId,
-        collectionName: data.collectionName || "",
-        quarterId: data.quarterId,
-        quarterName: data.quarterName || "",
-        sourceId: data.sourceId,
-        sourceUrl: data.url,
-        hasAIData: false, // This is pure manual collection
-      });
-
-      // Set mode to manual
-      setCurrentMode("manual");
-
-      // User is authenticated, open the URL directly
-      console.log("🌐 Opening source URL:", data.url);
-
-      // Dispatch event to MainLayout to load the URL
-      window.dispatchEvent(
-        new CustomEvent("open-source-url", {
-          detail: data.url,
-        })
-      );
-
-      // Load existing data from MongoDB (if any)
-      console.log("📥 Loading existing data from MongoDB...");
-      setTimeout(() => {
-        loadData();
-      }, 300); // Small delay to ensure context is set in store
-
-      // Show notification
-      console.log(`✅ Manual Collection Started for ${data.restaurantName}`);
-    }, 600); // Wait for reset to complete (500ms reset + 100ms buffer)
+    // Show notification
+    console.log(`✅ Manual Collection Started for ${data.restaurantName}`);
   };
 
   const processViewAIMenu = async (viewData: any) => {
@@ -733,7 +756,8 @@ function App() {
 
     // ⭐ CRITICAL FIX: Reset session before loading new collection
     // This ensures clean state when switching from manual → QC 1
-    resetAppSession();
+    // Now properly awaits the reset completion
+    await resetAppSession();
 
     // Clear existing data before loading new data
     console.log("🧹 Clearing existing data...");
@@ -777,18 +801,96 @@ function App() {
         "items"
       );
       console.log("📊 Progress:", qcData.stats);
+      console.log(
+        "📋 Raw items data:",
+        JSON.stringify(qcData.items?.slice(0, 2) || [])
+      ); // Log first 2 items for debugging
+
+      // ⭐ IMPORTANT: Check if items array exists and has data
+      if (!qcData.items || qcData.items.length === 0) {
+        console.warn(
+          "⚠️ API returned empty items array but stats show:",
+          qcData.stats
+        );
+        // Still show stats but with empty items - don't block collector
+      }
 
       // Transform to ExtractedItem format
-      const transformedItems = qcData.items.map((item, index) =>
+      const transformedItems = (qcData.items || []).map((item, index) =>
         transformQCItemToExtractedItem(item, index)
       );
 
+      console.log("📋 Transformed items count:", transformedItems.length);
       setExtractedData(transformedItems);
 
       // Store progress in localStorage for persistence
       localStorage.setItem("qcProgress", JSON.stringify(qcData.stats));
 
-      // Open source URL in browser
+      console.log(`✅ QC Mode Started for ${viewData.restaurantName}`);
+      console.log(
+        `📊 Progress: ${qcData.stats.verified}/${qcData.stats.total} verified (${Math.round(qcData.stats.percentComplete)}%)`
+      );
+    } catch (error) {
+      console.error("❌ Error loading QC merged items:", error);
+
+      // ⭐ GRACEFUL ERROR HANDLING: Don't block the collector
+      // Show warning but allow them to continue with manual collection
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+
+      // Check if it's a JSON parse error (HTML response)
+      const isHtmlResponse =
+        errorMessage.includes("<!DOCTYPE") ||
+        errorMessage.includes("Unexpected token") ||
+        errorMessage.includes("is not valid JSON");
+
+      if (isHtmlResponse) {
+        console.warn(
+          "⚠️ API returned HTML instead of JSON - endpoint may not exist or auth issue"
+        );
+        console.warn("⚠️ Falling back to manual collection mode");
+
+        // Show non-blocking warning
+        console.log(
+          "📋 Continuing with empty data - collector can add items manually"
+        );
+
+        // Set empty data but don't block
+        setExtractedData([]);
+        localStorage.setItem(
+          "qcProgress",
+          JSON.stringify({
+            total: 0,
+            verified: 0,
+            pending: 0,
+            conflicts: 0,
+            percentComplete: 0,
+          })
+        );
+      } else {
+        // For other errors, show a brief warning but don't block
+        console.warn(`⚠️ QC data fetch failed: ${errorMessage}`);
+        console.log(
+          "📋 Continuing with empty data - collector can add items manually"
+        );
+        setExtractedData([]);
+        // ⭐ ALSO reset localStorage stats for non-HTML errors
+        localStorage.setItem(
+          "qcProgress",
+          JSON.stringify({
+            total: 0,
+            verified: 0,
+            pending: 0,
+            conflicts: 0,
+            percentComplete: 0,
+          })
+        );
+      }
+    } finally {
+      setIsLoading(false);
+
+      // ⭐ ALWAYS open source URL, even if QC data failed to load
+      // This ensures the collector can still work
       if (viewData.sourceUrl) {
         console.log("🌐 Opening source URL:", viewData.sourceUrl);
         // Add a small delay to ensure MainLayout is mounted and ready
@@ -803,18 +905,6 @@ function App() {
       } else {
         console.warn("⚠️ No sourceUrl provided in viewData!");
       }
-
-      console.log(`✅ QC Mode Started for ${viewData.restaurantName}`);
-      console.log(
-        `📊 Progress: ${qcData.stats.verified}/${qcData.stats.total} verified (${qcData.stats.percentComplete}%)`
-      );
-    } catch (error) {
-      console.error("❌ Error loading QC merged items:", error);
-      alert(
-        `Failed to fetch QC data: ${error instanceof Error ? error.message : "Unknown error"}`
-      );
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -823,7 +913,8 @@ function App() {
       console.log("📥 Fetching AI-extracted menu items from API...");
 
       // ⭐ CRITICAL FIX: Reset session before loading new collection
-      resetAppSession();
+      // Now properly awaits the reset completion
+      await resetAppSession();
 
       // Store collection context for later use
       localStorage.setItem("currentCollection", JSON.stringify(collectionData));
@@ -854,7 +945,7 @@ function App() {
           : null;
 
         const response = await fetch(
-          `${joinUrl(webAppUrl, "/api/menu-items/ai")}?restaurantId=${collectionData.restaurantId}&sourceId=${collectionData.sourceId}`,
+          `${joinUrl(webAppUrl, "/api/v1/menu-items/ai")}?restaurantId=${collectionData.restaurantId}&sourceId=${collectionData.sourceId}`,
           {
             method: "GET",
             headers: {
@@ -1065,7 +1156,11 @@ function App() {
       <div className="flex items-center justify-center w-screen h-screen bg-background">
         <EnvironmentIndicator />
         <div className="text-center">
-          <div className="h-12 w-12 rounded-lg mx-auto mb-4 gradient-primary animate-pulse" />
+          <img
+            src="./logo.png"
+            alt="Loading"
+            className="w-16 h-16 mx-auto mb-4 animate-pulse"
+          />
           <p className="text-foreground text-lg font-medium">Loading...</p>
         </div>
       </div>
@@ -1131,7 +1226,11 @@ function App() {
       {isSwitchingMode && (
         <div className="absolute inset-0 bg-background/90 backdrop-blur-md flex items-center justify-center z-50">
           <div className="text-center">
-            <div className="h-16 w-16 rounded-2xl mx-auto mb-6 gradient-primary animate-pulse" />
+            <img
+              src="./logo.png"
+              alt="Loading"
+              className="w-20 h-20 mx-auto mb-6 animate-pulse"
+            />
             <p className="text-foreground text-xl font-semibold mb-2">
               Switching Mode...
             </p>

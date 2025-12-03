@@ -14,6 +14,12 @@ const menuManager = require("./main/core/menu");
 const lifecycleManager = require("./main/core/lifecycle");
 const ipcHandlers = require("./main/ipc/handlers");
 
+// ⭐ IMPORTANT: Set App User Model ID early for Windows taskbar icon
+// This MUST be set before app.whenReady() for the taskbar icon to work properly
+if (process.platform === "win32") {
+  app.setAppUserModelId("com.dataextractor.desktop");
+}
+
 // Enable live reload in development
 if (config.isDevelopment) {
   try {

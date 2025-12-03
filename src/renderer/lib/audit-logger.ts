@@ -37,7 +37,7 @@ export async function logAuditEvent(
     }
 ): Promise<void> {
     try {
-        await apiClient.post("/api/audit-logs", {
+        await apiClient.post("/v1/audit-logs", {
             menuItemId: params.menuItemId,
             itemType: params.itemType,
             userId: userContext.userId,

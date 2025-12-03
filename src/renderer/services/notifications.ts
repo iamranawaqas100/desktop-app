@@ -25,7 +25,7 @@ export interface Notification {
 export async function fetchNotifications(): Promise<Notification[]> {
     try {
         const response = await apiClient.get<{ success: boolean; notifications: Notification[] }>(
-            "/api/notifications"
+            "/v1/notifications"
         );
 
         if (response.success) {
@@ -44,7 +44,7 @@ export async function fetchNotifications(): Promise<Notification[]> {
  */
 export async function markNotificationRead(notificationId: string): Promise<void> {
     try {
-        await apiClient.patch(`/api/notifications/${notificationId}`, {
+        await apiClient.patch(`/v1/notifications/${notificationId}`, {
             read: true,
         });
     } catch (error) {

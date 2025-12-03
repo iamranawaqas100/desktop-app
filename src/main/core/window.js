@@ -97,7 +97,8 @@ const setupWindowHandlers = (window) => {
  * Create main window
  */
 const createWindow = () => {
-  const { app } = require("electron");
+  const { app, nativeImage } = require("electron");
+  const fs = require("fs");
 
   // Get icon path - works in both dev and production
   let iconPath;
@@ -109,7 +110,32 @@ const createWindow = () => {
     iconPath = path.join(__dirname, "..", "..", "..", "assets", "icon.ico");
   }
 
+  // Verify icon exists
+  if (!fs.existsSync(iconPath)) {
+    logger.warn(`Icon not found at: ${iconPath}, trying fallback...`);
+    // Try logo.png as fallback
+    const logoPngPath = app.isPackaged
+      ? path.join(process.resourcesPath, "assets", "logo.png")
+      : path.join(__dirname, "..", "..", "..", "assets", "logo.png");
+    if (fs.existsSync(logoPngPath)) {
+      iconPath = logoPngPath;
+    }
+  }
+
   logger.info(`Using icon path: ${iconPath}`);
+
+  // Create native image for better Windows support
+  let appIcon = null;
+  try {
+    appIcon = nativeImage.createFromPath(iconPath);
+    if (appIcon.isEmpty()) {
+      logger.warn("Icon image is empty, Windows may show default icon");
+    } else {
+      logger.info(`Icon loaded successfully: ${appIcon.getSize().width}x${appIcon.getSize().height}`);
+    }
+  } catch (err) {
+    logger.error("Failed to load icon:", err.message);
+  }
 
   mainWindow = new BrowserWindow({
     width: config.window.width,
@@ -121,14 +147,22 @@ const createWindow = () => {
       preload: path.join(__dirname, "..", "..", "preload", "preload.js"),
       webviewTag: true,
     },
-    icon: iconPath,
+    icon: appIcon || iconPath,
     title: "Data Extractor",
     titleBarStyle: "default",
     show: false,
   });
 
+  // Set the window icon explicitly (helps on some Windows versions)
+  if (appIcon && !appIcon.isEmpty()) {
+    mainWindow.setIcon(appIcon);
+  }
+
   // Set app user model ID for Windows taskbar grouping
   if (process.platform === "win32") {
+    // Set the app user model ID BEFORE setting app details
+    app.setAppUserModelId("com.dataextractor.desktop");
+    
     mainWindow.setAppDetails({
       appId: "com.dataextractor.desktop",
       appIconPath: iconPath,

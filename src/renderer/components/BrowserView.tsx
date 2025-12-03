@@ -160,6 +160,24 @@ export default function BrowserView({ url, webviewRef }: BrowserViewProps) {
           const data = JSON.parse(e.message.substring(8));
           if (data.type === "data-extracted") {
             handleDataExtracted(data.payload);
+          } else if (data.type === "data-deselected") {
+            // ⭐ Handle deselection - clear the field value
+            console.log("🔄 Field deselected:", data.payload.field);
+            handleDataDeselected(data.payload.field);
+          } else if (data.type === "selection-cancelled") {
+            // ⭐ Handle selection cancelled (right-click or ESC)
+            console.log("❌ Selection cancelled for:", data.payload.field);
+          } else if (data.type === "template-field-selected") {
+            // Forward template field selection to DataPanel via window message
+            console.log("📌 Template field selected:", data.payload);
+            window.postMessage(
+              {
+                type: "TEMPLATE_FIELD_SELECTED",
+                field: data.payload.field,
+                mapping: data.payload.mapping,
+              },
+              "*"
+            );
           }
         } catch (err) {
           console.error("Failed to parse extraction message:", err);
@@ -184,6 +202,46 @@ export default function BrowserView({ url, webviewRef }: BrowserViewProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     // handleDataExtracted and webviewRef are intentionally omitted - refs don't need dependencies
   ]);
+
+  // ⭐ Update webview with existing items for duplicate detection whenever extractedData changes
+  useEffect(() => {
+    const webview = webviewRef.current;
+    if (!webview || !isWebviewReady) return;
+
+    const existingTitles = extractedData
+      .map((item) => (item.title || "").trim().toLowerCase())
+      .filter((t) => t.length > 0);
+
+    try {
+      webview.executeJavaScript(`
+        if (window.existingItemTitles !== undefined) {
+          window.existingItemTitles = ${JSON.stringify(existingTitles)};
+          console.log('📋 Updated existing items for duplicate detection:', window.existingItemTitles.length);
+        }
+      `);
+    } catch (err) {
+      // Webview might not be ready, ignore
+    }
+  }, [extractedData, isWebviewReady, webviewRef]);
+
+  // ⭐ Handle field deselection
+  const handleDataDeselected = (field: string) => {
+    if (!currentItemId) return;
+
+    // Clear the field value in the store
+    const fieldMap: Record<string, string> = {
+      title: "title",
+      description: "description",
+      price: "price",
+      image: "image",
+    };
+
+    const storeField = fieldMap[field.toLowerCase()];
+    if (storeField) {
+      updateExtractedItem(currentItemId, { [storeField]: "" });
+      console.log(`✅ Cleared ${storeField} field`);
+    }
+  };
 
   const handleDataExtracted = async (data: any) => {
     const field = Object.keys(data).find(
@@ -300,6 +358,11 @@ export default function BrowserView({ url, webviewRef }: BrowserViewProps) {
   };
 
   const injectExtractionScript = (webview: any) => {
+    // ⭐ Get existing item titles for duplicate detection
+    const existingTitles = extractedData
+      .map((item) => (item.title || "").trim().toLowerCase())
+      .filter((t) => t.length > 0);
+
     const script = `
       if (!window.webviewInitialized) {
         window.webviewInitialized = true;
@@ -310,8 +373,38 @@ export default function BrowserView({ url, webviewRef }: BrowserViewProps) {
           mode: 'manual'
         };
         
+        // ⭐ Store existing items for duplicate detection
+        window.existingItemTitles = ${JSON.stringify(existingTitles)};
+        
+        // ⭐ Track selected elements for deselection
+        window.selectedElements = {};
+        
         function sendToHost(type, payload) {
           console.log('EXTRACT:' + JSON.stringify({ type, payload }));
+        }
+        
+        // ⭐ IMPROVED: Check if text matches an existing item (duplicate detection)
+        function isDuplicate(text) {
+          if (!text || !window.existingItemTitles || window.existingItemTitles.length === 0) return false;
+          
+          const normalizedText = text.trim().toLowerCase();
+          if (normalizedText.length < 3) return false; // Too short to be meaningful
+          
+          return window.existingItemTitles.some(existing => {
+            if (!existing || existing.length < 3) return false;
+            
+            // Exact match
+            if (existing === normalizedText) return true;
+            
+            // One contains the other (but must be significant overlap)
+            const shorter = existing.length < normalizedText.length ? existing : normalizedText;
+            const longer = existing.length < normalizedText.length ? normalizedText : existing;
+            
+            // Only flag as duplicate if shorter is at least 60% of longer
+            if (shorter.length / longer.length < 0.6) return false;
+            
+            return longer.includes(shorter);
+          });
         }
         
         window.addEventListener('message', (event) => {
@@ -320,13 +413,250 @@ export default function BrowserView({ url, webviewRef }: BrowserViewProps) {
             
             if (event.data.command === 'START_SELECTION') {
               startSelection(event.data.field);
+            } else if (event.data.command === 'START_TEMPLATE_FIELD_SELECTION') {
+              startTemplateFieldSelection(event.data.field);
             } else if (event.data.command === 'STOP_SELECTION') {
               stopSelection();
+              stopTemplateFieldSelection();
             } else if (event.data.command === 'CLEAR_ALL_HIGHLIGHTS') {
               clearAllHighlights();
+            } else if (event.data.command === 'CLEAR_TEMPLATE_HIGHLIGHTS') {
+              clearTemplateHighlights();
+            } else if (event.data.command === 'UPDATE_EXISTING_ITEMS') {
+              // ⭐ Update existing items list for duplicate detection
+              window.existingItemTitles = event.data.items || [];
+              console.log('Updated existing items:', window.existingItemTitles.length);
             }
           }
         });
+        
+        // ================================================================
+        // TEMPLATE FIELD SELECTION MODE
+        // Uses same UI as regular extraction but captures DOM structure
+        // ================================================================
+        
+        let templateFieldSelecting = false;
+        let templateCurrentField = null;
+        let templateHoveredElement = null;
+        let templateSelectedElements = {};
+        
+        function startTemplateFieldSelection(field) {
+          console.log('Starting template field selection for:', field);
+          templateFieldSelecting = true;
+          templateCurrentField = field;
+          
+          document.addEventListener('click', handleTemplateFieldClick, true);
+          document.addEventListener('mouseover', handleTemplateFieldHover, true);
+          document.addEventListener('mouseout', handleTemplateFieldHoverOut, true);
+          
+          // Inject template hover styles
+          if (!document.getElementById('template-field-styles')) {
+            const style = document.createElement('style');
+            style.id = 'template-field-styles';
+            style.textContent = \`
+              .template-field-hover {
+                outline: 2px dashed #3B82F6 !important;
+                outline-offset: 2px !important;
+                background-color: rgba(59, 130, 246, 0.1) !important;
+                cursor: crosshair !important;
+              }
+              .template-field-selected {
+                outline: 3px solid #00D2A1 !important;
+                outline-offset: 2px !important;
+                background-color: rgba(0, 210, 161, 0.15) !important;
+              }
+            \`;
+            document.head.appendChild(style);
+          }
+          
+          const overlay = document.createElement('div');
+          overlay.id = 'template-field-overlay';
+          overlay.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);' +
+            'background:#3B82F6;color:white;padding:12px 24px;border-radius:8px;z-index:999999;' +
+            'font-weight:bold;box-shadow:0 4px 12px rgba(0,0,0,0.2);font-family:system-ui;';
+          overlay.textContent = '🎯 Click to select ' + field + ' element';
+          document.body.appendChild(overlay);
+          document.body.style.cursor = 'crosshair';
+        }
+        
+        function stopTemplateFieldSelection() {
+          templateFieldSelecting = false;
+          templateCurrentField = null;
+          
+          document.removeEventListener('click', handleTemplateFieldClick, true);
+          document.removeEventListener('mouseover', handleTemplateFieldHover, true);
+          document.removeEventListener('mouseout', handleTemplateFieldHoverOut, true);
+          
+          if (templateHoveredElement) {
+            templateHoveredElement.classList.remove('template-field-hover');
+            templateHoveredElement = null;
+          }
+          
+          const overlay = document.getElementById('template-field-overlay');
+          if (overlay) overlay.remove();
+          
+          document.body.style.cursor = '';
+        }
+        
+        function handleTemplateFieldHover(e) {
+          if (!templateFieldSelecting) return;
+          
+          if (templateHoveredElement && templateHoveredElement !== e.target) {
+            templateHoveredElement.classList.remove('template-field-hover');
+          }
+          
+          e.target.classList.add('template-field-hover');
+          templateHoveredElement = e.target;
+          e.stopPropagation();
+        }
+        
+        function handleTemplateFieldHoverOut(e) {
+          // Let hover handle transitions
+        }
+        
+        function handleTemplateFieldClick(e) {
+          if (!templateFieldSelecting) return;
+          
+          e.preventDefault();
+          e.stopPropagation();
+          e.stopImmediatePropagation();
+          
+          const element = e.target;
+          const field = templateCurrentField;
+          
+          // ================================================================
+          // BUILD COMPREHENSIVE ELEMENT MAPPING
+          // ================================================================
+          
+          function buildSelector(el) {
+            if (el.id) return '#' + el.id;
+            
+            let selector = el.tagName.toLowerCase();
+            if (el.className && typeof el.className === 'string') {
+              const classes = el.className.trim().split(/\\s+/)
+                .filter(c => c && !c.match(/^(hover|active|focus|selected|template|extractor)/i))
+                .slice(0, 3);
+              if (classes.length > 0) {
+                selector += '.' + classes.join('.');
+              }
+            }
+            
+            if (el.parentElement) {
+              const siblings = Array.from(el.parentElement.children)
+                .filter(s => s.tagName === el.tagName);
+              if (siblings.length > 1) {
+                const index = siblings.indexOf(el) + 1;
+                selector += ':nth-of-type(' + index + ')';
+              }
+            }
+            
+            return selector;
+          }
+          
+          function buildXPath(el) {
+            const parts = [];
+            let current = el;
+            
+            while (current && current.nodeType === Node.ELEMENT_NODE) {
+              let index = 1;
+              let sibling = current.previousSibling;
+              
+              while (sibling) {
+                if (sibling.nodeType === Node.ELEMENT_NODE && sibling.tagName === current.tagName) {
+                  index++;
+                }
+                sibling = sibling.previousSibling;
+              }
+              
+              const tagName = current.tagName.toLowerCase();
+              const xpathIndex = index > 1 ? '[' + index + ']' : '';
+              parts.unshift(tagName + xpathIndex);
+              
+              current = current.parentElement;
+            }
+            
+            return '/' + parts.join('/');
+          }
+          
+          function getParentSelector(el) {
+            if (!el.parentElement || el.parentElement === document.body) return '';
+            return buildSelector(el.parentElement);
+          }
+          
+          function getRelativePosition(el) {
+            if (!el.parentElement) return 0;
+            return Array.from(el.parentElement.children).indexOf(el);
+          }
+          
+          // Extract value based on field type
+          let sampleValue = '';
+          if (field === 'image') {
+            sampleValue = element.src || element.getAttribute('data-src') || 
+                         element.style.backgroundImage?.match(/url\\(['"]?([^'"\\)]+)['"]?\\)/)?.[1] || '';
+          } else {
+            sampleValue = element.textContent?.trim() || '';
+          }
+          
+          const mapping = {
+            field: field,
+            selector: buildSelector(element),
+            xpath: buildXPath(element),
+            tagName: element.tagName,
+            className: element.className || '',
+            parentSelector: getParentSelector(element),
+            relativePosition: getRelativePosition(element),
+            sampleValue: sampleValue.substring(0, 100),
+          };
+          
+          console.log('Template field mapping:', mapping);
+          
+          // Store in local tracking
+          templateSelectedElements[field] = { element, mapping };
+          
+          // Visual feedback - mark as selected
+          element.classList.remove('template-field-hover');
+          element.classList.add('template-field-selected');
+          
+          // Send template field mapping to host via console (IPC)
+          sendToHost('template-field-selected', {
+            field: field,
+            mapping: mapping,
+          });
+          
+          // Also send extracted value for preview in the form
+          const extractedData = {};
+          extractedData[field] = sampleValue;
+          sendToHost('data-extracted', extractedData);
+          
+          stopTemplateFieldSelection();
+        }
+        
+        function clearTemplateHighlights() {
+          // Clear all template-related highlights
+          document.querySelectorAll('.template-field-hover').forEach(el => {
+            el.classList.remove('template-field-hover');
+          });
+          document.querySelectorAll('.template-field-selected').forEach(el => {
+            el.classList.remove('template-field-selected');
+            el.style.outline = '';
+            el.style.outlineOffset = '';
+          });
+          document.querySelectorAll('[data-template-item]').forEach(el => {
+            el.style.outline = '';
+            el.style.outlineOffset = '';
+            el.removeAttribute('data-template-item');
+          });
+          
+          templateSelectedElements = {};
+          templateHoveredElement = null;
+          
+          const overlay = document.getElementById('template-field-overlay');
+          if (overlay) overlay.remove();
+          
+          document.body.style.cursor = '';
+          
+          console.log('Cleared all template highlights');
+        }
         
         function startSelection(field) {
           console.log('Starting selection for:', field);
@@ -334,10 +664,11 @@ export default function BrowserView({ url, webviewRef }: BrowserViewProps) {
           window.extractionState.currentField = field;
           
           document.addEventListener('click', handleExtractClick, true);
+          document.addEventListener('contextmenu', handleRightClick, true); // ⭐ Right-click to cancel
           document.addEventListener('mouseover', handleHover, true);
           document.addEventListener('mouseout', handleHoverOut, true);
           
-          // Inject hover styles
+          // Inject hover styles including duplicate warning (yellow)
           if (!document.getElementById('extractor-styles')) {
             const style = document.createElement('style');
             style.id = 'extractor-styles';
@@ -350,10 +681,57 @@ export default function BrowserView({ url, webviewRef }: BrowserViewProps) {
                 transition: all 0.15s ease !important;
               }
               
+              /* ⭐ Yellow border for duplicates */
+              .extractor-hover-duplicate {
+                outline: 3px solid #EAB308 !important;
+                outline-offset: 2px !important;
+                background-color: rgba(234, 179, 8, 0.2) !important;
+                cursor: not-allowed !important;
+                transition: all 0.15s ease !important;
+              }
+              
               .extractor-selected {
                 outline: 3px solid #00d2a1 !important;
                 outline-offset: 2px !important;
                 background-color: rgba(0, 210, 161, 0.2) !important;
+              }
+              
+              /* ⭐ Already selected element - click to deselect */
+              .extractor-already-selected {
+                outline: 3px solid #3B82F6 !important;
+                outline-offset: 2px !important;
+                background-color: rgba(59, 130, 246, 0.15) !important;
+                cursor: pointer !important;
+              }
+              
+              /* ⭐ Duplicate warning tooltip */
+              .extractor-duplicate-tooltip {
+                position: fixed;
+                background: #EAB308;
+                color: #000;
+                padding: 8px 16px;
+                border-radius: 6px;
+                font-size: 12px;
+                font-weight: bold;
+                z-index: 999998;
+                pointer-events: none;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+                font-family: system-ui;
+              }
+              
+              /* ⭐ Info tooltip for already selected */
+              .extractor-info-tooltip {
+                position: fixed;
+                background: #3B82F6;
+                color: white;
+                padding: 8px 16px;
+                border-radius: 6px;
+                font-size: 12px;
+                font-weight: bold;
+                z-index: 999998;
+                pointer-events: none;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+                font-family: system-ui;
               }
             \`;
             document.head.appendChild(style);
@@ -363,26 +741,92 @@ export default function BrowserView({ url, webviewRef }: BrowserViewProps) {
           overlay.id = 'extract-overlay';
           overlay.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);' +
             'background:#00d2a1;color:white;padding:12px 24px;border-radius:8px;z-index:999999;' +
-            'font-weight:bold;box-shadow:0 4px 12px rgba(0,0,0,0.2);font-family:system-ui;';
-          overlay.textContent = '🎯 Click to select ' + field;
+            'font-weight:bold;box-shadow:0 4px 12px rgba(0,0,0,0.2);font-family:system-ui;text-align:center;';
+          overlay.innerHTML = '🎯 Click to select <strong>' + field + '</strong><br><span style="font-size:11px;opacity:0.9">Right-click or ESC to cancel</span>';
           document.body.appendChild(overlay);
           document.body.style.cursor = 'crosshair';
         }
         
+        // ⭐ NEW: Right-click handler to cancel selection
+        function handleRightClick(e) {
+          if (!window.extractionState.isSelecting) return;
+          
+          e.preventDefault();
+          e.stopPropagation();
+          
+          console.log('Right-click detected - canceling selection');
+          stopSelection();
+          
+          // Notify host that selection was cancelled
+          sendToHost('selection-cancelled', { field: window.extractionState.currentField });
+        }
+        
         let hoveredElement = null;
+        let duplicateTooltip = null;
+        let infoTooltip = null;
         
         function handleHover(e) {
           if (!window.extractionState.isSelecting) return;
           
+          const field = window.extractionState.currentField;
+          
           // Remove hover from previous element
           if (hoveredElement && hoveredElement !== e.target) {
             hoveredElement.classList.remove('extractor-hover');
+            hoveredElement.classList.remove('extractor-hover-duplicate');
+            hoveredElement.classList.remove('extractor-already-selected');
           }
           
-          // Add hover to current element
-          e.target.classList.add('extractor-hover');
-          hoveredElement = e.target;
+          // Remove existing tooltips
+          if (duplicateTooltip) {
+            duplicateTooltip.remove();
+            duplicateTooltip = null;
+          }
+          if (infoTooltip) {
+            infoTooltip.remove();
+            infoTooltip = null;
+          }
           
+          const text = e.target.textContent?.trim() || '';
+          
+          // ⭐ PRIORITY 1: Check for duplicates FIRST (for title field)
+          // This is more important than showing "already selected" state
+          const isDup = (field === 'title') && isDuplicate(text);
+          
+          if (isDup) {
+            // ⭐ Show yellow border for duplicate - highest priority warning
+            e.target.classList.add('extractor-hover-duplicate');
+            
+            // Show duplicate warning tooltip with clear message
+            duplicateTooltip = document.createElement('div');
+            duplicateTooltip.className = 'extractor-duplicate-tooltip';
+            duplicateTooltip.textContent = '⚠️ Already exists: "' + text.substring(0, 25) + (text.length > 25 ? '...' : '') + '"';
+            duplicateTooltip.style.left = (e.clientX + 15) + 'px';
+            duplicateTooltip.style.top = (e.clientY + 15) + 'px';
+            document.body.appendChild(duplicateTooltip);
+          } else {
+            // ⭐ PRIORITY 2: Check if this element is already selected for this field
+            const isAlreadySelected = window.selectedElements && 
+              window.selectedElements[field] === e.target;
+            
+            if (isAlreadySelected) {
+              // Show blue border for already selected - click to deselect
+              e.target.classList.add('extractor-already-selected');
+              
+              // Show info tooltip
+              infoTooltip = document.createElement('div');
+              infoTooltip.className = 'extractor-info-tooltip';
+              infoTooltip.textContent = '🔄 Click again to deselect';
+              infoTooltip.style.left = (e.clientX + 15) + 'px';
+              infoTooltip.style.top = (e.clientY + 15) + 'px';
+              document.body.appendChild(infoTooltip);
+            } else {
+              // ⭐ PRIORITY 3: Normal green hover - safe to select
+              e.target.classList.add('extractor-hover');
+            }
+          }
+          
+          hoveredElement = e.target;
           e.stopPropagation();
         }
         
@@ -396,13 +840,26 @@ export default function BrowserView({ url, webviewRef }: BrowserViewProps) {
           window.extractionState.currentField = null;
           
           document.removeEventListener('click', handleExtractClick, true);
+          document.removeEventListener('contextmenu', handleRightClick, true); // ⭐ Remove right-click handler
           document.removeEventListener('mouseover', handleHover, true);
           document.removeEventListener('mouseout', handleHoverOut, true);
           
           // Remove hover from last element
           if (hoveredElement) {
             hoveredElement.classList.remove('extractor-hover');
+            hoveredElement.classList.remove('extractor-hover-duplicate');
+            hoveredElement.classList.remove('extractor-already-selected');
             hoveredElement = null;
+          }
+          
+          // ⭐ Remove all tooltips
+          if (duplicateTooltip) {
+            duplicateTooltip.remove();
+            duplicateTooltip = null;
+          }
+          if (infoTooltip) {
+            infoTooltip.remove();
+            infoTooltip = null;
           }
           
           const overlay = document.getElementById('extract-overlay');
@@ -441,6 +898,26 @@ export default function BrowserView({ url, webviewRef }: BrowserViewProps) {
           
           const element = e.target;
           const field = window.extractionState.currentField;
+          
+          // ⭐ Check if clicking on already selected element - DESELECT
+          if (window.selectedElements && window.selectedElements[field] === element) {
+            console.log('Deselecting element for field:', field);
+            
+            // Remove selection styling
+            element.classList.remove('extractor-selected');
+            element.classList.remove('extractor-already-selected');
+            
+            // Clear from selected elements
+            delete window.selectedElements[field];
+            
+            // Send deselection to host
+            sendToHost('data-deselected', { field: field });
+            
+            // Stop selection mode
+            stopSelection();
+            return;
+          }
+          
           let value = '';
           let imageUrl = '';
           
@@ -554,7 +1031,17 @@ export default function BrowserView({ url, webviewRef }: BrowserViewProps) {
           
           // Remove hover class and add selected class
           element.classList.remove('extractor-hover');
+          element.classList.remove('extractor-hover-duplicate');
           element.classList.add('extractor-selected');
+          
+          // ⭐ Track selected element for deselection support
+          if (!window.selectedElements) window.selectedElements = {};
+          
+          // Clear previous selection for this field
+          if (window.selectedElements[field]) {
+            window.selectedElements[field].classList.remove('extractor-selected');
+          }
+          window.selectedElements[field] = element;
           
           // Ensure we only send simple, cloneable data
           const extractedData = {
@@ -594,7 +1081,11 @@ export default function BrowserView({ url, webviewRef }: BrowserViewProps) {
       {isLoading && (
         <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-10">
           <div className="text-center">
-            <div className="h-12 w-12 rounded-lg mx-auto mb-4 gradient-primary animate-pulse" />
+            <img
+              src="./logo.png"
+              alt="Loading"
+              className="w-14 h-14 mx-auto mb-4 animate-pulse"
+            />
             <p className="text-foreground text-lg font-medium">
               Loading page...
             </p>
